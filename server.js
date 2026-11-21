@@ -3,7 +3,7 @@
 import http from 'node:http';
 import https from 'node:https';
 
-const PORT = Number(process.env.PORT) || 25560;                       // Render tells us which port to listen on
+const PORT = Number(process.env.PORT) || 10000;                       // Render tells us which port to listen on
 const UP = new URL(process.env.UPSTREAM || 'http://localhost:3000');   // your bot's API address, e.g. http://de25.spaceify.eu:25560
 const KEY = process.env.PROXY_KEY || '';                              // shared secret: only this proxy may call your bot's API
 const ORIGINS = new Set((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean));
@@ -18,11 +18,12 @@ http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
   if (path === '/' || path === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('Waapo proxy is running'); }   // also used to keep the service awake
   if (!path.startsWith('/api/')) return json(res, 404, { error: 'Not found.' }, cors);
-  if (Number(req.headers['content-length'] || 0) > 20000) return json(res, 413, { error: 'That request is too large.' }, cors);
+  const big = path === '/api/upload';                                  // photo / video / audio uploads: bigger body, more time
+  if (Number(req.headers['content-length'] || 0) > (big ? 17e6 : 20000)) return json(res, 413, { error: 'That request is too large.' }, cors);
 
   const headers = { 'x-proxy-key': KEY, 'x-forwarded-for': String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '') };
   for (const k of ['authorization', 'content-type', 'content-length', 'origin']) if (req.headers[k]) headers[k] = req.headers[k];
-  const up = lib.request({ hostname: UP.hostname, port: UP.port || (UP.protocol === 'https:' ? 443 : 80), path: req.url, method: req.method, headers, timeout: 25000 }, r => {
+  const up = lib.request({ hostname: UP.hostname, port: UP.port || (UP.protocol === 'https:' ? 443 : 80), path: req.url, method: req.method, headers, timeout: big ? 120000 : 25000 }, r => {
     const out = { ...r.headers };
     for (const k of Object.keys(out)) if (/^(access-control-|connection$|keep-alive$|transfer-encoding$)/i.test(k)) delete out[k];   // we add CORS ourselves
     res.writeHead(r.statusCode || 502, { ...out, ...cors }); r.pipe(res);
