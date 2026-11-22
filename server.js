@@ -4,7 +4,7 @@ import http from 'node:http';
 import https from 'node:https';
 
 const PORT = Number(process.env.PORT) || 10000;                       // Render tells us which port to listen on
-const UP = new URL(process.env.UPSTREAM || 'http://localhost:3000');   // your bot's API address, e.g. http://de25.spaceify.eu:25560
+const UP = new URL(process.env.UPSTREAM || 'http://localhost:4000');   // your bot's API address, e.g. http://de25.spaceify.eu:25560
 const KEY = process.env.PROXY_KEY || '';                              // shared secret: only this proxy may call your bot's API
 const ORIGINS = new Set((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean));
 const lib = UP.protocol === 'https:' ? https : http;
